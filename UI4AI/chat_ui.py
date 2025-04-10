@@ -13,7 +13,7 @@ def run_chat(
     layout: str = "wide",
     new_conversation: str = "➕ New Chat",
     chat_placeholder: str = "Ask me anything...",
-    sidebar_instructions: str = "Conversation History",
+    sidebar_instructions: str = "Conversation History\n\nPowered by Kethan Dosapati",
     spinner_text: str = "Thinking...",
     max_history_tokens: Optional[int] = None
 ):

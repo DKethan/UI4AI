@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="UI4AI",
-    version="0.1.0",
+    version="0.1.1",
     author="Kethan Dosapati",
     description="Streamlit UI for LLM chat apps",
     long_description=open("README.md").read(),
