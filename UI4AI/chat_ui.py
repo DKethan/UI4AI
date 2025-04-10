@@ -91,7 +91,6 @@ def _handle_user_input(
     max_tokens: Optional[int]
 ):
     if prompt := st.chat_input(placeholder):
-        print(f"User: {prompt}")
         _create_conversation_if_needed(prompt, generate_title)
 
         st.chat_message("user").markdown(prompt)
