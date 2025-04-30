@@ -1,158 +1,307 @@
 import streamlit as st
 import uuid
+import json
 from datetime import datetime
 from typing import List, Dict, Callable, Optional
 
 
-def run_chat(
-    generate_response: Optional[Callable[[List[Dict]], str]],
-    generate_title: Optional[Callable[[str], str]] = None,
-    count_tokens: Optional[Callable[[List[Dict]], int]] = None,
-    page_title: str = "AI Chat",
-    title: str = "Conversational bot",
-    layout: str = "wide",
-    new_conversation: str = "➕ New Chat",
-    chat_placeholder: str = "Ask me anything...",
-    sidebar_instructions: str = "Conversation History\n\nPowered by Kethan Dosapati",
-    spinner_text: str = "Thinking...",
-    max_history_tokens: Optional[int] = None
-):
-    """Streamlit UI for LLM chat with flexible core"""
+# Persistence functions
+def _load_conversations() -> Dict:
+    try:
+        with open("conversations.json", "r") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return {}
+    except Exception as e:
+        st.error(f"Error loading conversations: {e}")
+        return {}
 
-    if not generate_response:
-        print("No generate_response function provided.")
-        st.set_page_config(page_title="Error", layout="wide")
-        st.error("No `generate_response` function provided.")
-        return
+
+def _save_conversations():
+    try:
+        with open("conversations.json", "w") as f:
+            json.dump(st.session_state.conversations, f, indent=2, default=str)
+    except Exception as e:
+        st.error(f"Error saving conversations: {e}")
+
+
+# Date formatting
+def _get_date_category(created_at: str) -> str:
+    created_date = datetime.fromisoformat(created_at).date()
+    today = datetime.now().date()
+    delta = today - created_date
+
+    if delta.days == 0:
+        return "Today"
+    elif delta.days == 1:
+        return "Yesterday"
+    elif delta.days < 7:
+        return created_date.strftime("%A")
+    return created_date.strftime("%b %-d, %Y")
+
+
+def run_chat(
+        generate_response: Optional[Callable[[List[Dict]], str]],
+        generate_title: Optional[Callable[[str], str]] = None,
+        count_tokens: Optional[Callable[[List[Dict]], int]] = None,
+        page_title: str = "AI Chat",
+        header_title: str = "UI4AI",
+        byline_text: str = "Powered by Kethan Dosapati",
+        layout: str = "wide",
+        new_conversation_label: str = "➕ New Chat",
+        chat_placeholder: str = "Ask me anything...",
+        spinner_text: str = "Thinking...",
+        max_history_tokens: Optional[int] = None,
+        show_edit_options: bool = True,
+        primary_color: str = "#4f8bf9",
+        hover_color: str = "#f0f2f6",
+        date_grouping: bool = True,
+        show_token_count: bool = True,
+        max_title_length: int = 25
+):
+    """Enhanced Streamlit chat UI with three-dot menu styling"""
 
     _init_session_state()
-
     st.set_page_config(page_title=page_title, layout=layout)
-    st.title(title)
+
+    # Main chat interface
+    st.sidebar.markdown(f"<h1 style='margin-bottom:0'>{header_title}</h1>", unsafe_allow_html=True)
+    st.sidebar.markdown(f"<small>{byline_text}</small>", unsafe_allow_html=True)
 
     with st.sidebar:
-        _render_sidebar(generate_title, count_tokens, sidebar_instructions, new_conversation)
+        _render_sidebar(
+            generate_title=generate_title,
+            count_tokens=count_tokens,
+            new_conversation_label=new_conversation_label,
+            show_edit_options=show_edit_options,
+            primary_color=primary_color,
+            hover_color=hover_color,
+            date_grouping=date_grouping,
+            show_token_count=show_token_count,
+            max_title_length=max_title_length
+        )
 
     _render_chat_history()
-
     _handle_user_input(
-        generate_response,
-        generate_title,
-        count_tokens,
-        chat_placeholder,
-        spinner_text,
-        max_history_tokens
+        generate_response=generate_response,
+        generate_title=generate_title,
+        count_tokens=count_tokens,
+        chat_placeholder=chat_placeholder,
+        spinner_text=spinner_text,
+        max_history_tokens=max_history_tokens
     )
 
 
 def _init_session_state():
-    defaults = {"conversations": {}, "current_convo_id": None, "messages": []}
+    defaults = {
+        "conversations": _load_conversations(),
+        "current_convo_id": None,
+        "messages": [],
+        "editing_convo": None,
+        "menu_open": None
+    }
     for key, val in defaults.items():
         if key not in st.session_state:
             st.session_state[key] = val
 
 
 def _render_sidebar(
-    generate_title: Optional[Callable],
-    count_tokens: Optional[Callable],
-    instructions: str,
-    new_conversation: str
+        generate_title: Optional[Callable],
+        count_tokens: Optional[Callable],
+        new_conversation_label: str,
+        show_edit_options: bool,
+        primary_color: str,
+        hover_color: str,
+        date_grouping: bool,
+        show_token_count: bool,
+        max_title_length: int
 ):
-    st.markdown("### 📖 Instructions")
-    st.markdown(instructions)
-
-    if st.button(new_conversation):
-        print("🔄 New conversation started")
+    # New chat button
+    if st.button(new_conversation_label, use_container_width=True):
         _reset_conversation()
 
-    if generate_title:
-        for convo_id, convo in st.session_state.conversations.items():
-            label = convo["title"]
-            if count_tokens:
-                label += f" ({convo.get('token_count', '?')} tokens)"
-            if st.button(label, key=convo_id):
-                st.session_state.current_convo_id = convo_id
-                st.session_state.messages = convo["messages"]
+    st.markdown("---")
+    sorted_convos = sorted(
+        st.session_state.conversations.values(),
+        key=lambda x: x["created_at"],
+        reverse=True
+    )
+
+    if "menu_states" not in st.session_state:
+        st.session_state.menu_states = {}
+
+    if "edit_states" not in st.session_state:
+        st.session_state.edit_states = {}
+
+    current_group = None
+    for convo in sorted_convos:
+        if date_grouping:
+            group = _get_date_category(convo["created_at"])
+            if group != current_group:
+                st.markdown(f"**{group}**")
+                current_group = group
+
+        convo_id = convo["id"]
+
+        if convo_id not in st.session_state.menu_states:
+            st.session_state.menu_states[convo_id] = False
+
+        title = (convo["title"][:max_title_length] + "...") if len(convo["title"]) > max_title_length else convo["title"]
+        if show_token_count and count_tokens:
+            title += f" ({convo.get('token_count', '?')})"
+
+        row = st.container()
+
+        if convo_id in st.session_state.edit_states and st.session_state.edit_states[convo_id]:
+            new_title = st.text_input("Edit title", value=convo["title"], key=f"edit_title_{convo_id}")
+            if st.button("Save", key=f"save_title_{convo_id}"):
+                convo["title"] = new_title
+                _save_conversations()
+                st.session_state.edit_states[convo_id] = False
                 st.rerun()
+            if st.button("Cancel", key=f"cancel_edit_{convo_id}"):
+                st.session_state.edit_states[convo_id] = False
+                st.rerun()
+        else:
+            with row:
+                if st.button(title, key=f"title_{convo_id}", use_container_width=True):
+                    st.session_state.current_convo_id = convo_id
+                    st.session_state.messages = convo["messages"]
+                    st.rerun()
+                if not st.session_state.menu_states[convo_id]:
+                    if st.button("⋯", key=f"dots_{convo_id}"):
+                        st.session_state.menu_states[convo_id] = True
+                        st.rerun()
+                else:
+                    if st.button("✏️", key=f"edit_{convo_id}"):
+                        st.session_state.edit_states[convo_id] = True
+                        st.session_state.menu_states[convo_id] = False
+                        st.rerun()
+                    if st.button("🗑️", key=f"delete_{convo_id}"):
+                        del st.session_state.conversations[convo_id]
+                        if st.session_state.current_convo_id == convo_id:
+                            _reset_conversation()
+                        _save_conversations()
+                        st.rerun()
+                    if st.button("✕", key=f"close_{convo_id}", help="Close menu"):
+                        st.session_state.menu_states[convo_id] = False
+                        st.rerun()
 
 
 def _render_chat_history():
-    for msg in st.session_state.messages:
-        with st.chat_message(msg["role"]):
-            st.markdown(msg["content"])
+    """Display the chat message history"""
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
 
 
 def _handle_user_input(
-    generate_response: Callable,
-    generate_title: Optional[Callable],
-    count_tokens: Optional[Callable],
-    placeholder: str,
-    spinner_text: str,
-    max_tokens: Optional[int]
+        generate_response: Optional[Callable],
+        generate_title: Optional[Callable],
+        count_tokens: Optional[Callable],
+        chat_placeholder: str,
+        spinner_text: str,
+        max_history_tokens: Optional[int]
 ):
-    if prompt := st.chat_input(placeholder):
-        _create_conversation_if_needed(prompt, generate_title)
-
+    """Process user input, generate responses, and update conversation"""
+    if prompt := st.chat_input(chat_placeholder):
+        # Add user message to chat
         st.chat_message("user").markdown(prompt)
+
+        # Add user message to state
         st.session_state.messages.append({"role": "user", "content": prompt})
 
-        try:
-            with st.spinner(spinner_text):
-                if count_tokens and max_tokens:
-                    messages_for_api = _truncate_messages(
-                        st.session_state.messages,
-                        count_tokens,
-                        max_tokens
-                    )
-                elif generate_title or count_tokens:
-                    messages_for_api = st.session_state.messages
-                else:
-                    messages_for_api = [st.session_state.messages[-1]]
+        # Create a conversation if needed
+        _create_conversation_if_needed(generate_title, prompt)
 
-                response = generate_response(messages_for_api)
+        # Generate AI response
+        if generate_response:
+            with st.chat_message("assistant"):
+                with st.spinner(spinner_text):
+                    # Truncate messages if needed
+                    if max_history_tokens and count_tokens:
+                        st.session_state.messages = _truncate_messages(
+                            st.session_state.messages,
+                            max_history_tokens,
+                            count_tokens
+                        )
 
-                st.chat_message("assistant").markdown(response)
-                st.session_state.messages.append({"role": "assistant", "content": response})
+                    # Generate response
+                    response = generate_response(st.session_state.messages)
+                    st.markdown(response)
 
-                if st.session_state.current_convo_id:
-                    convo = st.session_state.conversations[st.session_state.current_convo_id]
-                    convo["messages"] = st.session_state.messages
-                    if count_tokens:
-                        convo["token_count"] = count_tokens(st.session_state.messages)
+            # Add response to state and save
+            st.session_state.messages.append({"role": "assistant", "content": response})
 
-        except Exception as e:
-            print(f"Exception: {e}")
-            st.error(f"Error: {str(e)}")
+            # Update conversation in storage
+            convo_id = st.session_state.current_convo_id
+            st.session_state.conversations[convo_id]["messages"] = st.session_state.messages
+
+            # Update token count if provided
+            if count_tokens:
+                token_count = count_tokens(st.session_state.messages)
+                st.session_state.conversations[convo_id]["token_count"] = token_count
+
+            _save_conversations()
 
 
-def _create_conversation_if_needed(prompt: str, generate_title: Optional[Callable]):
-    if not st.session_state.current_convo_id:
+def _create_conversation_if_needed(generate_title: Optional[Callable], first_prompt: str):
+    """Create a new conversation if one doesn't exist"""
+    if st.session_state.current_convo_id is None:
         convo_id = str(uuid.uuid4())
-        title = generate_title(prompt) if generate_title else "Untitled Chat"
+        st.session_state.current_convo_id = convo_id
+
+        # Set default title, which may be updated later
+        title = "New Conversation"
+        if generate_title:
+            title = generate_title(first_prompt)
+
         st.session_state.conversations[convo_id] = {
             "id": convo_id,
             "title": title,
-            "messages": [],
-            "token_count": 0,
-            "created_at": datetime.now().isoformat()
+            "messages": st.session_state.messages,
+            "created_at": datetime.now().isoformat(),
+            "token_count": 0
         }
-        st.session_state.current_convo_id = convo_id
+        _save_conversations()
 
 
 def _reset_conversation():
+    """Reset to a new empty conversation"""
     st.session_state.current_convo_id = None
     st.session_state.messages = []
+    st.session_state.menu_open = None
+    st.rerun()
 
 
-def _truncate_messages(messages: List[Dict], count_tokens: Callable, max_tokens: int) -> List[Dict]:
-    trimmed = []
-    total_tokens = 0
+def _truncate_messages(messages: List[Dict], max_tokens: int, count_tokens: Callable) -> List[Dict]:
+    """Truncate message history to fit within token limit"""
+    if not messages:
+        return messages
 
-    for msg in reversed(messages):
-        tokens = count_tokens([msg])
-        if total_tokens + tokens > max_tokens:
+    # Always keep the system message if present
+    system_message = None
+    other_messages = messages.copy()
+
+    if messages[0]["role"] == "system":
+        system_message = messages[0]
+        other_messages = messages[1:]
+
+    # Check if we need to truncate
+    if count_tokens(messages) <= max_tokens:
+        return messages
+
+    # Truncate older messages first
+    truncated_messages = []
+    if system_message:
+        truncated_messages.append(system_message)
+
+    # Add messages from newest to oldest until we hit the token limit
+    for message in reversed(other_messages):
+        test_messages = truncated_messages + [message]
+        if count_tokens(test_messages) <= max_tokens:
+            truncated_messages = [message] + truncated_messages
+        else:
             break
-        trimmed.insert(0, msg)
-        total_tokens += tokens
 
-    return trimmed
+    return truncated_messages
