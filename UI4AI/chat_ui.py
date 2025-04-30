@@ -210,6 +210,17 @@ def _handle_user_input(
         # Create a conversation if needed
         _create_conversation_if_needed(generate_title, prompt)
 
+        # Flag to track if title was updated
+        title_updated = False
+
+        # Update title if this is the first message and title is still default
+        convo_id = st.session_state.current_convo_id
+        if (len(st.session_state.messages) == 1 and
+                st.session_state.conversations[convo_id]["title"] == "New Conversation" and
+                generate_title):
+            st.session_state.conversations[convo_id]["title"] = generate_title(prompt)
+            title_updated = True
+
         # Generate AI response
         if generate_response:
             with st.chat_message("assistant"):
@@ -230,7 +241,6 @@ def _handle_user_input(
             st.session_state.messages.append({"role": "assistant", "content": response})
 
             # Update conversation in storage
-            convo_id = st.session_state.current_convo_id
             st.session_state.conversations[convo_id]["messages"] = st.session_state.messages
 
             # Update token count if provided
@@ -239,6 +249,10 @@ def _handle_user_input(
                 st.session_state.conversations[convo_id]["token_count"] = token_count
 
             _save_conversations()
+
+            # Rerun to refresh UI if title was updated
+            if title_updated:
+                st.rerun()
 
 
 def _create_conversation_if_needed(generate_title: Optional[Callable], first_prompt: str):
@@ -263,12 +277,24 @@ def _create_conversation_if_needed(generate_title: Optional[Callable], first_pro
 
 
 def _reset_conversation():
-    """Reset to a new empty conversation"""
-    st.session_state.current_convo_id = None
+    """Reset to a new conversation"""
+    # Clear current conversation
     st.session_state.messages = []
     st.session_state.menu_open = None
-    st.rerun()
 
+    # Create new conversation immediately
+    convo_id = str(uuid.uuid4())
+    st.session_state.current_convo_id = convo_id
+
+    st.session_state.conversations[convo_id] = {
+        "id": convo_id,
+        "title": "New Conversation",  # Default title until user sends first message
+        "messages": [],
+        "created_at": datetime.now().isoformat(),
+        "token_count": 0
+    }
+    _save_conversations()
+    st.rerun()
 
 def _truncate_messages(messages: List[Dict], max_tokens: int, count_tokens: Callable) -> List[Dict]:
     """Truncate message history to fit within token limit"""
