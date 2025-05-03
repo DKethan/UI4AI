@@ -1,9 +1,3 @@
-"""
-Message handling and processing functionality for the chat interface.
-
-This module provides functions for processing user input, generating
-responses, and managing message history.
-"""
 import uuid
 from datetime import datetime
 from typing import Callable, Dict, List, Optional

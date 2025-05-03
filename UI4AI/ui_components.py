@@ -1,9 +1,3 @@
-"""
-UI rendering components for the Streamlit chat interface.
-
-This module contains functions for rendering different UI components
-of the chat interface, including sidebar, history, and styling.
-"""
 import streamlit as st
 from typing import Callable, Dict, List, Optional
 

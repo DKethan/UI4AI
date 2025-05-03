@@ -1,9 +1,3 @@
-"""
-Session state management for the chat interface.
-
-This module provides functions for initializing and managing the
-Streamlit session state for chat conversations.
-"""
 import uuid
 from datetime import datetime
 from typing import Dict, Optional

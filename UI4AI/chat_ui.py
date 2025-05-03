@@ -1,9 +1,3 @@
-"""
-Main chat UI implementation for UI4AI.
-
-This module serves as the entry point for the UI4AI package,
-providing the main run_chat function that integrates all components.
-"""
 from typing import List, Dict, Callable, Optional
 
 import streamlit as st
