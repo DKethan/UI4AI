@@ -104,4 +104,4 @@ Control how many messages are remembered in the chat history.
 >View and click through previous conversation threads in the sidebar.  
 
 ### 💾 Persistent Sessions  
->Your chat history persists even after refreshing the page. You can return and continue where you left off!
+>Your chat history persists even after refreshing the page or even restarting app. You can return and continue where you left off!
