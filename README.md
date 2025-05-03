@@ -101,7 +101,7 @@ Control how many messages are remembered in the chat history.
 >Session state is stored automatically, so your chat history and context are preserved. You can continue your conversation even if you restart or refresh the app!
 
 ### 📚 Sidebar History  
-View and click through previous conversation threads in the sidebar.  
+>View and click through previous conversation threads in the sidebar.  
 
 ### 💾 Persistent Sessions  
-Your chat history persists even after refreshing the page. You can return and continue where you left off!
+>Your chat history persists even after refreshing the page. You can return and continue where you left off!
