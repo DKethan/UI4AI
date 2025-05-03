@@ -1,17 +1,19 @@
+# UI4AI
+
 A simple, lightweight, and plug-and-play Streamlit-based UI for LLM chatbot applications.
 
 ---
 
 ## 🚀 Features
 
-- Plug in your own `generate_response` function  
-- Built-in sidebar history and session management  
+- Plug in your own `generate_response` function
+- Built-in sidebar history and session management
 - Optional extras:
   - Title generation
   - Token counting
   - Max history control
-
-![Chat Example](images/table001.png)
+  - Customizable and editable conversation history titles
+  - Persistent session state: continue your chat even after restarting the app
 
 ---
 
@@ -29,10 +31,8 @@ A simple, lightweight, and plug-and-play Streamlit-based UI for LLM chatbot appl
 from UI4AI import run_chat
 import openai
 
-# Set your OpenAI API key
 openai.api_key = "<YOUR_API_KEY>"
 
-# Define how the chatbot generates responses
 def generate_response(messages) -> str:
     try:
         response = openai.ChatCompletion.create(
@@ -44,7 +44,6 @@ def generate_response(messages) -> str:
     except Exception as e:
         raise RuntimeError(f"Response generation failed: {str(e)}")
 
-# Launch the chat app
 run_chat(
     generate_response=generate_response,
     title="My Chatbot",
@@ -86,22 +85,23 @@ run_chat(
 ## 🔧 Additional Features
 
 ### 🧠 Title Generation  
-Automatically generates a conversation title.  
-![Title Generation](images/sample_title.png)
+>Automatically generates a conversation title.
 
 ### 🔢 Token Counting  
-Displays the total token count used in the conversation.  
-![Token Counting](images/sample_title_with_tokens.png)
+>Displays the total token count used in the conversation.  
 
 ### 🕒 Customizable Max History  
 Control how many messages are remembered in the chat history.  
-![Max History](images/max_history.png)  
 > For example, if you first ask “Who is Spider-Man?” When you later ask “Name all his movies?”, it assumes “his” means Spider-Man this is because of history.
+
+### 📝 Customizable Conversation Titles
+>You can edit or customize the title of any conversation in the history sidebar for better organization.
+
+### 💾 Persistent Sessions
+>Session state is stored automatically, so your chat history and context are preserved. You can continue your conversation even if you restart or refresh the app!
 
 ### 📚 Sidebar History  
 View and click through previous conversation threads in the sidebar.  
-![Session History](images/sample_session.png)
 
 ### 💾 Persistent Sessions  
-Your chat history persists even after refreshing the page. You can return and continue where you left off!  
-![Session Persistence](images/sample_session.png)
+Your chat history persists even after refreshing the page. You can return and continue where you left off!
