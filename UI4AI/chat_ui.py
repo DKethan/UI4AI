@@ -1,15 +1,16 @@
-from typing import List, Dict, Callable, Optional
+from typing import List, Dict, Callable, Optional, Iterator
 
 import streamlit as st
 
 from .conversation_store import save_conversations
 from .session_manager import init_session_state, reset_conversation
-from .ui_components import render_sidebar, render_chat_history, render_chat_header
-from .message_handler import handle_user_input
+from .ui_components import render_sidebar, render_chat_history, render_chat_header, render_welcome_screen
+from .message_handler import handle_user_input, create_system_message
 
 
 def run_chat(
-        generate_response: Optional[Callable[[List[Dict]], str]],
+        generate_response: Optional[Callable[[List[Dict]], str]] = None,
+        generate_response_stream: Optional[Callable[[List[Dict]], Iterator[str]]] = None,
         generate_title: Optional[Callable[[str], str]] = None,
         count_tokens: Optional[Callable[[List[Dict]], int]] = None,
         page_title: str = "AI Chat",
@@ -28,7 +29,12 @@ def run_chat(
         max_title_length: int = 25,
         storage_path: Optional[str] = None,
         system_prompt: Optional[str] = None,
-        enable_search: bool = False
+        enable_search: bool = False,
+        user_avatar: Optional[str] = None,
+        assistant_avatar: Optional[str] = None,
+        welcome_title: str = "Welcome",
+        welcome_message: str = "How can I help you today?",
+        suggestions: Optional[List[str]] = None,
 ):
     """
     Run the enhanced Streamlit chat UI with all features.
@@ -64,9 +70,8 @@ def run_chat(
     # Render chat header
     render_chat_header(header_title, byline_text)
 
-    # Add system message if provided
-    if system_prompt and st.session_state.messages:
-        from .message_handler import create_system_message
+    # Add system message if provided (including for new conversations)
+    if system_prompt:
         create_system_message(system_prompt)
 
     # Define a save function to use in components (with path from session state)
@@ -93,16 +98,28 @@ def run_chat(
             save_conversations_func=save_func
         )
 
-    # Render main chat interface
-    render_chat_history()
-    
+    # Render main chat interface (welcome screen when no visible conversation yet)
+    messages = st.session_state.messages
+    has_visible_messages = len(messages) > 1 or (len(messages) == 1 and messages[0]["role"] != "system")
+    if not has_visible_messages:
+        render_welcome_screen(
+            welcome_title=welcome_title,
+            welcome_message=welcome_message,
+            suggestions=suggestions,
+        )
+    else:
+        render_chat_history(user_avatar=user_avatar, assistant_avatar=assistant_avatar)
+
     # Handle user input
     handle_user_input(
         generate_response=generate_response,
+        generate_response_stream=generate_response_stream,
         generate_title=generate_title,
         count_tokens=count_tokens,
         chat_placeholder=chat_placeholder,
         spinner_text=spinner_text,
         max_history_tokens=max_history_tokens,
-        save_conversations_func=save_func
+        save_conversations_func=save_func,
+        user_avatar=user_avatar,
+        assistant_avatar=assistant_avatar,
     )

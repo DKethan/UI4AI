@@ -1,0 +1,12 @@
+# ChatGPT-style theme defaults for UI4AI apps.
+# Users can override by editing this file or setting theme in their own .streamlit/config.toml.
+
+[theme]
+primaryColor = "#10a37f"
+backgroundColor = "#212121"
+secondaryBackgroundColor = "#171717"
+textColor = "#ececec"
+font = "sans serif"
+
+[theme.base]
+base = "dark"

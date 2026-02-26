@@ -133,8 +133,7 @@ def render_conversation_row(
                 )
             else:
                 if st.button("⋯", key=f"dots_{convo_id}",
-                             type="secondary", use_container_width=True,
-                             kwargs={"class": "small-button"}):
+                             type="secondary", use_container_width=True):
                     st.session_state.menu_states[convo_id] = True
                     st.rerun()
 
@@ -142,15 +141,13 @@ def render_conversation_row(
 def render_conversation_menu(convo_id, is_current, reset_func, save_func):
     """Render the menu options for a conversation"""
     if st.button("✏️", key=f"edit_{convo_id}", help="Rename",
-                 type="secondary", use_container_width=True,
-                 kwargs={"class": "small-button"}):
+                 type="secondary", use_container_width=True):
         st.session_state.edit_states[convo_id] = True
         st.session_state.menu_states[convo_id] = False
         st.rerun()
     
     if st.button("🗑️", key=f"delete_{convo_id}", help="Delete",
-                 type="secondary", use_container_width=True,
-                 kwargs={"class": "small-button"}):
+                 type="secondary", use_container_width=True):
         del st.session_state.conversations[convo_id]
         if st.session_state.current_convo_id == convo_id:
             reset_func()
@@ -159,8 +156,7 @@ def render_conversation_menu(convo_id, is_current, reset_func, save_func):
             st.rerun()
     
     if st.button("✕", key=f"close_{convo_id}", help="Close menu",
-                 type="secondary", use_container_width=True,
-                 kwargs={"class": "small-button"}):
+                 type="secondary", use_container_width=True):
         st.session_state.menu_states[convo_id] = False
         st.rerun()
 
@@ -175,56 +171,84 @@ def format_conversation_title(convo, max_length, show_token_count, count_tokens_
     return title
 
 
-def render_chat_history():
-    """Display the chat message history"""
+def render_welcome_screen(
+    welcome_title: str,
+    welcome_message: str,
+    suggestions: Optional[List[str]] = None,
+):
+    """Render a welcome screen when there are no messages (optionally with suggestion chips)."""
+    st.markdown(f"## {welcome_title}")
+    st.markdown(welcome_message)
+    if suggestions:
+        st.markdown("---")
+        for i, suggestion in enumerate(suggestions):
+            if st.button(suggestion, key=f"suggestion_{i}", use_container_width=True):
+                st.session_state.pending_suggestion = suggestion
+                st.rerun()
+
+
+def render_chat_history(user_avatar=None, assistant_avatar=None):
+    """Display the chat message history."""
     for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
+        avatar = user_avatar if message["role"] == "user" else assistant_avatar
+        with st.chat_message(message["role"], avatar=avatar):
             st.markdown(message["content"])
 
 
 def apply_sidebar_styling():
-    """Apply CSS styling for the sidebar components"""
+    """Apply CSS styling for ChatGPT-like sidebar: compact rows, hover, rounded corners."""
     st.markdown("""
     <style>
-        div[data-testid="stVerticalBlock"] > div[style*="flex-direction: column;"] > div {
-            gap: 0.2rem;
+        /* Compact spacing in sidebar */
+        div[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] {
+            gap: 0.25rem;
         }
-        button.small-button {
-            padding: 0 0.3rem !important;
-            min-height: 1.5rem !important;
-            margin: 0 0.1rem !important;
+        /* Conversation list: rounded buttons, hover effect */
+        div[data-testid="stSidebar"] button {
+            border-radius: 0.5rem !important;
+            padding: 0.5rem 0.75rem !important;
+            min-height: 2.25rem !important;
+            transition: background-color 0.15s ease;
+        }
+        div[data-testid="stSidebar"] button:hover {
+            background-color: rgba(128, 128, 128, 0.2) !important;
+        }
+        /* Clean divider below New Chat */
+        div[data-testid="stSidebar"] hr {
+            margin: 0.5rem 0 !important;
+            border-color: rgba(128, 128, 128, 0.3) !important;
         }
     </style>
     """, unsafe_allow_html=True)
 
 
 def render_chat_header(header_title: str, byline_text: str):
-    """Render the chat header"""
+    """Render a polished chat header in the sidebar."""
     st.sidebar.markdown(
-        f"<h1 style='margin-bottom:0; font-size:2.5rem'>{header_title}</h1>",
-        unsafe_allow_html=True
+        f"<h1 style='margin-bottom:0; font-size:1.75rem; font-weight:600; letter-spacing:-0.02em;'>{header_title}</h1>",
+        unsafe_allow_html=True,
     )
-    st.sidebar.markdown(f"<small>{byline_text}</small>",
-                       unsafe_allow_html=True)
+    st.sidebar.markdown(
+        f"<p style='margin-top:0.25rem; font-size:0.85rem; opacity:0.85;'>{byline_text}</p>",
+        unsafe_allow_html=True,
+    )
 
 
 def render_search_box():
-    """Render a search box for finding conversations"""
-    search_query = st.sidebar.text_input(
-        "Search conversations", 
+    """Render a search box for finding conversations (call within st.sidebar context)."""
+    search_query = st.text_input(
+        "Search conversations",
         placeholder="Type to search...",
         key="conversation_search"
     )
-    
+
     if search_query:
         from .conversation_store import search_conversations
-        
+
         matching_ids = search_conversations(search_query)
         if matching_ids:
-            st.sidebar.markdown(f"Found {len(matching_ids)} matches")
-            # Highlight matched conversations or filter the list
-            # This could be implemented based on how you want to display results
+            st.markdown(f"Found {len(matching_ids)} matches")
         else:
-            st.sidebar.markdown("No matches found")
-            
+            st.markdown("No matches found")
+
     return search_query

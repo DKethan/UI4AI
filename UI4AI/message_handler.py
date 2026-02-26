@@ -1,34 +1,42 @@
 import uuid
 from datetime import datetime
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Dict, Iterator, List, Optional
 
 import streamlit as st
 
 
 def handle_user_input(
         generate_response: Optional[Callable],
+        generate_response_stream: Optional[Callable[[List[Dict]], Iterator[str]]],
         generate_title: Optional[Callable],
         count_tokens: Optional[Callable],
         chat_placeholder: str,
         spinner_text: str,
         max_history_tokens: Optional[int],
-        save_conversations_func: Callable
+        save_conversations_func: Callable,
+        user_avatar: Optional[str] = None,
+        assistant_avatar: Optional[str] = None,
 ):
     """
     Process user input, generate responses, and update conversation.
-    
+
     Args:
         generate_response: Function to generate responses to user messages
+        generate_response_stream: Optional stream generator (takes priority over generate_response)
         generate_title: Function to generate conversation titles
         count_tokens: Function to count tokens in conversations
         chat_placeholder: Placeholder text for the chat input
         spinner_text: Text to display while generating a response
         max_history_tokens: Maximum number of tokens to keep in history
         save_conversations_func: Function to save conversations
+        user_avatar: Optional avatar for user messages
+        assistant_avatar: Optional avatar for assistant messages
     """
-    if prompt := st.chat_input(chat_placeholder):
+    prompt = st.session_state.pop("pending_suggestion", None) or st.chat_input(chat_placeholder)
+    if prompt:
         # Add user message to chat
-        st.chat_message("user").markdown(prompt)
+        with st.chat_message("user", avatar=user_avatar):
+            st.markdown(prompt)
 
         # Add user message to state
         st.session_state.messages.append({"role": "user", "content": prompt})
@@ -47,20 +55,24 @@ def handle_user_input(
             st.session_state.conversations[convo_id]["title"] = generate_title(prompt)
             title_updated = True
 
-        # Generate AI response
-        if generate_response:
-            with st.chat_message("assistant"):
-                with st.spinner(spinner_text):
-                    # Truncate messages if needed
-                    if max_history_tokens and count_tokens:
-                        st.session_state.messages = truncate_messages(
-                            st.session_state.messages,
-                            max_history_tokens,
-                            count_tokens
-                        )
+        # Prefer streaming over non-streaming when both could be provided
+        responder = generate_response_stream or generate_response
+        if responder:
+            # Truncate messages if needed before calling
+            if max_history_tokens and count_tokens:
+                st.session_state.messages = truncate_messages(
+                    st.session_state.messages,
+                    max_history_tokens,
+                    count_tokens
+                )
 
-                    # Generate response
-                    response = generate_response(st.session_state.messages)
+            if generate_response_stream and responder == generate_response_stream:
+                with st.chat_message("assistant", avatar=assistant_avatar):
+                    response = st.write_stream(generate_response_stream(st.session_state.messages))
+            else:
+                with st.chat_message("assistant", avatar=assistant_avatar):
+                    with st.spinner(spinner_text):
+                        response = generate_response(st.session_state.messages)
                     st.markdown(response)
 
             # Add response to state and save
@@ -140,19 +152,16 @@ def truncate_messages(messages: List[Dict], max_tokens: int, count_tokens: Calla
     if count_tokens(messages) <= max_tokens:
         return messages
 
-    # Truncate older messages first
+    # Truncate older messages first: keep system + most recent messages within limit
     truncated_messages = []
-    if system_message:
-        truncated_messages.append(system_message)
-
-    # Add messages from newest to oldest until we hit the token limit
     for message in reversed(other_messages):
-        test_messages = truncated_messages + [message]
-        if count_tokens(test_messages) <= max_tokens:
+        candidate = ([system_message] if system_message else []) + [message] + truncated_messages
+        if count_tokens(candidate) <= max_tokens:
             truncated_messages = [message] + truncated_messages
         else:
             break
-
+    if system_message:
+        truncated_messages = [system_message] + truncated_messages
     return truncated_messages
 
 

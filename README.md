@@ -1,107 +1,156 @@
 # UI4AI
 
-A simple, lightweight, and plug-and-play Streamlit-based UI for LLM chatbot applications.
+[![PyPI version](https://badge.fury.io/py/UI4AI.svg)](https://pypi.org/project/UI4AI/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+A simple, lightweight, and plug-and-play Streamlit-based UI for LLM chatbot applications with ChatGPT-style features.
 
 ---
 
-## 🚀 Features
+## Features
 
-- Plug in your own `generate_response` function
+- Plug in your own `generate_response` or **streaming** `generate_response_stream` function
 - Built-in sidebar history and session management
-- Optional extras:
-  - Title generation
-  - Token counting
-  - Max history control
-  - Customizable and editable conversation history titles
-  - Persistent session state: continue your chat even after restarting the app
+- **Welcome screen** with optional suggestion chips when starting a new chat
+- **Custom avatars** for user and assistant messages
+- Optional: title generation, token counting, max history control
+- Editable conversation titles and persistent sessions (survives refresh/restart)
+- Optional conversation search
 
 ---
 
-## 📦 Installation
+## Installation
 
 ```bash
-  pip install UI4AI
+pip install UI4AI
 ```
 
 ---
 
-## 🧠 Basic Usage
+## Basic Usage
+
+Use the modern OpenAI Python SDK and the actual `run_chat()` parameters:
 
 ```python
 from UI4AI import run_chat
-import openai
+from openai import OpenAI
 
-openai.api_key = "<YOUR_API_KEY>"
+client = OpenAI(api_key="<YOUR_API_KEY>")
 
-def generate_response(messages) -> str:
-    try:
-        response = openai.ChatCompletion.create(
-            model="gpt-4",
-            messages=messages,
-            temperature=0.7
-        )
-        return response.choices[0].message.content
-    except Exception as e:
-        raise RuntimeError(f"Response generation failed: {str(e)}")
+def generate_response(messages):
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=messages,
+        temperature=0.7,
+    )
+    return response.choices[0].message.content or ""
 
 run_chat(
     generate_response=generate_response,
-    title="My Chatbot",
-    sidebar=True,
-    session_state=True,
-    token_counting=True
+    page_title="My Chatbot",
+    header_title="My Chatbot",
+)
+```
+
+Run the app:
+
+```bash
+streamlit run app.py
+```
+
+---
+
+## Streaming (typewriter effect)
+
+Pass a **generator** that yields string chunks to get a ChatGPT-like streaming response:
+
+```python
+from UI4AI import run_chat
+from openai import OpenAI
+
+client = OpenAI(api_key="<YOUR_API_KEY>")
+
+def generate_response_stream(messages):
+    stream = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=messages,
+        stream=True,
+    )
+    for chunk in stream:
+        if chunk.choices[0].delta.content:
+            yield chunk.choices[0].delta.content
+
+run_chat(
+    generate_response_stream=generate_response_stream,
+    page_title="Streaming Chat",
 )
 ```
 
 ---
 
-## ▶️ Running the App
-
-```bash
-  streamlit run app.py  # Or replace with your own script name
-```
-
----
-
-## 🎨 Customization Options
-
-You can customize the UI with these optional parameters:
+## Welcome screen and avatars
 
 ```python
 run_chat(
-    generate_response: Callable[[List[Dict]], str],
-    page_title: str = "AI Chat", 
-    title: str = "Conversational Bot",
-    layout: str = "wide",
-    new_conversation: str = "➕ New Chat",
-    chat_placeholder: str = "Ask me anything...",
-    sidebar_instructions: str = "Conversation History",
-    spinner_text: str = "Thinking...",
+    generate_response=my_response_fn,
+    welcome_title="Welcome",
+    welcome_message="How can I help you today?",
+    suggestions=[
+        "Explain quantum computing in simple terms",
+        "Write a short poem",
+        "Help me debug this code",
+    ],
+    user_avatar="🧑",
+    assistant_avatar="🤖",
 )
 ```
 
 ---
 
-## 🔧 Additional Features
+## Parameter reference
 
-### 🧠 Title Generation  
->Automatically generates a conversation title.
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `generate_response` | `Callable[[List[Dict]], str]` or `None` | `None` | Function that takes messages and returns the full response text. |
+| `generate_response_stream` | `Callable[[List[Dict]], Iterator[str]]` or `None` | `None` | Generator that yields response chunks (used for streaming; takes priority over `generate_response`). |
+| `generate_title` | `Callable[[str], str]` or `None` | `None` | Generates a conversation title from the first user message. |
+| `count_tokens` | `Callable[[List[Dict]], int]` or `None` | `None` | Returns token count for the conversation (enables token display and `max_history_tokens`). |
+| `page_title` | `str` | `"AI Chat"` | Browser tab title. |
+| `header_title` | `str` | `"UI4AI"` | Sidebar header title. |
+| `byline_text` | `str` | `"Powered by Kethan Dosapati"` | Byline under the header. |
+| `layout` | `str` | `"wide"` | Streamlit layout: `"wide"` or `"centered"`. |
+| `new_conversation_label` | `str` | `"➕ New Chat"` | Label for the new conversation button. |
+| `chat_placeholder` | `str` | `"Ask me anything..."` | Placeholder for the chat input. |
+| `spinner_text` | `str` | `"Thinking..."` | Text shown while generating (non-streaming). |
+| `max_history_tokens` | `int` or `None` | `None` | Max tokens to keep in context (requires `count_tokens`). |
+| `show_edit_options` | `bool` | `True` | Show edit/delete in conversation menu. |
+| `primary_color` | `str` | `"#4f8bf9"` | Primary UI color. |
+| `hover_color` | `str` | `"#f0f2f6"` | Hover color. |
+| `date_grouping` | `bool` | `True` | Group conversations by date in sidebar. |
+| `show_token_count` | `bool` | `True` | Show token count per conversation. |
+| `max_title_length` | `int` | `25` | Max length of conversation title in sidebar. |
+| `storage_path` | `str` or `None` | `None` | Custom path for conversation JSON file. |
+| `system_prompt` | `str` or `None` | `None` | System message added to each conversation. |
+| `enable_search` | `bool` | `False` | Enable conversation search in sidebar. |
+| `user_avatar` | `str` or `None` | `None` | Avatar for user (emoji, `:material/icon_name:`, or image URL). |
+| `assistant_avatar` | `str` or `None` | `None` | Avatar for assistant. |
+| `welcome_title` | `str` | `"Welcome"` | Title shown when there are no messages. |
+| `welcome_message` | `str` | `"How can I help you today?"` | Message shown on welcome screen. |
+| `suggestions` | `List[str]` or `None` | `None` | Optional suggestion chips on welcome screen. |
 
-### 🔢 Token Counting  
->Displays the total token count used in the conversation.  
+---
 
-### 🕒 Customizable Max History  
-Control how many messages are remembered in the chat history.  
-> For example, if you first ask “Who is Spider-Man?” When you later ask “Name all his movies?”, it assumes “his” means Spider-Man this is because of history.
+## Additional features
 
-### 📝 Customizable Conversation Titles
->You can edit or customize the title of any conversation in the history sidebar for better organization.
+- **Title generation** — Automatically generates a conversation title from the first message when `generate_title` is provided.
+- **Token counting** — Displays total token count per conversation when `count_tokens` is provided.
+- **Max history** — Use `max_history_tokens` with `count_tokens` to limit context length (older messages are truncated).
+- **Editable titles** — Rename conversations from the sidebar menu.
+- **Persistent sessions** — Conversations are saved to a JSON file and persist across refreshes and restarts.
+- **Sidebar history** — Switch between past conversations in the sidebar.
 
-### 💾 Persistent Sessions
->Session state is stored automatically, so your chat history and context are preserved. You can continue your conversation even if you restart or refresh the app!
+---
 
-### 📚 Sidebar History  
->View and click through previous conversation threads in the sidebar.  
+## License
 
-### 💾 Persistent Sessions  
->Your chat history persists even after refreshing the page or even restarting app. You can return and continue where you left off!
+MIT

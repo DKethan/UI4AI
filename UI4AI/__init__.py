@@ -1,19 +1,4 @@
-"""
-UI4AI: A Streamlit UI for LLM chat applications.
-
-This package provides a simple, plug-and-play interface for creating
-chat applications with Streamlit, handling conversation history,
-persistence, and UI components.
-
-Example:
-    from UI4AI import run_chat
-    
-    def generate_response(messages):
-        # Your LLM integration here
-        return "I'm a chatbot response"
-    
-    run_chat(generate_response=generate_response)
-"""
+"""UI4AI: A Streamlit-based chat UI for LLM applications with history, persistence, and ChatGPT-style features."""
 
 __version__ = "0.2.0"
 
@@ -40,11 +25,12 @@ from .message_handler import (
 
 # Session management functions
 from .session_manager import (
+    get_current_conversation,
     reset_conversation,
     delete_conversation,
     update_conversation_title,
     switch_conversation,
-    export_session_data
+    export_session_data,
 )
 
 __all__ = [
@@ -66,9 +52,10 @@ __all__ = [
     "format_markdown_message",
     
     # Session management
+    "get_current_conversation",
     "reset_conversation",
     "delete_conversation",
     "update_conversation_title",
     "switch_conversation",
-    "export_session_data"
+    "export_session_data",
 ]

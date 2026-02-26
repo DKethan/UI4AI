@@ -62,7 +62,7 @@ def get_date_category(created_at: str) -> str:
         return "Yesterday"
     elif delta.days < 7:
         return created_date.strftime("%A")
-    return created_date.strftime("%b %-d, %Y")
+    return f"{created_date.strftime('%b')} {created_date.day}, {created_date.year}"
 
 
 def export_conversations(file_path: str, format_type: str = "json") -> bool:

@@ -22,7 +22,8 @@ def init_session_state(storage_path: Optional[str] = None):
         "menu_open": None,
         "menu_states": {},
         "edit_states": {},
-        "storage_path": storage_path
+        "storage_path": storage_path,
+        "pending_suggestion": None,
     }
     
     for key, val in defaults.items():

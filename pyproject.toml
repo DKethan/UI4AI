@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "UI4AI"
+version = "0.2.0"
+description = "A Streamlit UI for LLM chat applications with persistence and chat history"
+readme = "README.md"
+license = { text = "MIT" }
+authors = [
+    { name = "Kethan Dosapati", email = "kethandosapati@gmail.com" }
+]
+keywords = [
+    "streamlit", "chat", "ui", "llm", "chatbot", "conversation", "ai", "openai"
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Framework :: Streamlit",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+requires-python = ">=3.8"
+dependencies = [
+    "streamlit>=1.20.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0"]
+
+[project.urls]
+Homepage = "https://github.com/DKethan/UI4AI"
+Repository = "https://github.com/DKethan/UI4AI"
+"Bug Tracker" = "https://github.com/DKethan/UI4AI/issues"
+
+[tool.setuptools.packages.find]
+include = ["UI4AI*"]
