@@ -160,31 +160,36 @@ def backup_conversations(backup_dir: str) -> bool:
 def search_conversations(query: str) -> List[str]:
     """
     Search conversations for a query string.
+    Matches when every word in the query appears in the conversation title or any message.
     
     Args:
-        query: Search string to look for in conversation titles and messages
+        query: Search string; can be multiple words. All words must appear (in title or messages).
         
     Returns:
         List of conversation IDs matching the query
     """
     if not query:
         return []
-    
-    query = query.lower()
+    # Normalize: strip, lowercase, split into words (ignore empty)
+    words = [w for w in query.lower().strip().split() if w]
+    if not words:
+        return []
+
     matching_ids = []
-    
     for convo_id, convo in st.session_state.conversations.items():
-        # Check title
-        if query in convo.get('title', '').lower():
+        title_lower = convo.get("title", "").lower()
+        # Build one searchable text from title + all non-system message contents
+        text_parts = [title_lower]
+        for msg in convo.get("messages", []):
+            if msg.get("role") == "system":
+                continue
+            text_parts.append(msg.get("content", "").lower())
+        combined = " ".join(text_parts)
+
+        # Match only if every query word appears somewhere in title or messages
+        if all(word in combined for word in words):
             matching_ids.append(convo_id)
-            continue
-        
-        # Check messages
-        for msg in convo.get('messages', []):
-            if query in msg.get('content', '').lower():
-                matching_ids.append(convo_id)
-                break
-    
+
     return matching_ids
 
 

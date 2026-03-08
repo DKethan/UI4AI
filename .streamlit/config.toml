@@ -1,12 +1,10 @@
-# ChatGPT-style theme defaults for UI4AI apps.
+# Conversational bot theme - dark mode with orange/gold accents.
 # Users can override by editing this file or setting theme in their own .streamlit/config.toml.
 
 [theme]
-primaryColor = "#10a37f"
-backgroundColor = "#212121"
+base = "dark"
+primaryColor = "#e85d5d"
+backgroundColor = "#1e1e1e"
 secondaryBackgroundColor = "#171717"
 textColor = "#ececec"
 font = "sans serif"
-
-[theme.base]
-base = "dark"

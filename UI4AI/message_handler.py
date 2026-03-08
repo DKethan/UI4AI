@@ -16,6 +16,7 @@ def handle_user_input(
         save_conversations_func: Callable,
         user_avatar: Optional[str] = None,
         assistant_avatar: Optional[str] = None,
+        chat_input_value: Optional[str] = None,
 ):
     """
     Process user input, generate responses, and update conversation.
@@ -32,9 +33,13 @@ def handle_user_input(
         user_avatar: Optional avatar for user messages
         assistant_avatar: Optional avatar for assistant messages
     """
-    prompt = st.session_state.pop("pending_suggestion", None) or st.chat_input(chat_placeholder)
+    from .ui_components import DEFAULT_USER_AVATAR, DEFAULT_ASSISTANT_AVATAR
+    user_avatar = user_avatar or DEFAULT_USER_AVATAR
+    assistant_avatar = assistant_avatar or DEFAULT_ASSISTANT_AVATAR
+    # Use chat_input_value from chat_ui (single widget, avoids duplicate input box)
+    prompt = st.session_state.pop("pending_suggestion", None) or chat_input_value
     if prompt:
-        # Add user message to chat
+        # Add user message to chat (continue in current conversation; create_conversation_if_needed handles new convo when needed)
         with st.chat_message("user", avatar=user_avatar):
             st.markdown(prompt)
 
@@ -88,9 +93,8 @@ def handle_user_input(
 
             save_conversations_func()
 
-            # Rerun to refresh UI if title was updated
-            if title_updated:
-                st.rerun()
+            # Rerun so welcome screen is replaced by chat history (and title update is visible)
+            st.rerun()
 
 
 def create_conversation_if_needed(

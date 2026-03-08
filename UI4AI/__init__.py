@@ -2,8 +2,8 @@
 
 __version__ = "0.2.0"
 
-# Main interface function
-from .chat_ui import run_chat
+# Main interface functions
+from .chat_ui import run_chat, run_chat_openai
 
 # Conversation storage functions
 from .conversation_store import (
@@ -36,6 +36,7 @@ from .session_manager import (
 __all__ = [
     # Main interface
     "run_chat",
+    "run_chat_openai",
     
     # Conversation storage
     "load_conversations",

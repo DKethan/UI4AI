@@ -23,7 +23,7 @@ def generate_response(messages):
 # Run the chat app with minimal configuration
 run_chat(
     generate_response=generate_response,
-    page_title="Simple Demo",
-    header_title="UI4AI Demo",
-    byline_text="Simple Example"
+    page_title="Conversational bot",
+    header_title="Conversational bot",
+    byline_text="Powered by UI4AI",
 )
