@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from typing import Dict, Optional
+from typing import Callable, Dict, Optional
 
 import streamlit as st
 
@@ -65,6 +65,25 @@ def reset_conversation():
     
     save_conversations(st.session_state.storage_path)
     st.rerun()
+
+
+def ensure_new_conversation(save_func: Callable[[], None]):
+    """Create a new conversation and switch to it (no rerun). Use when starting from a suggestion."""
+    # Preserve system message if present
+    system_msg = None
+    if st.session_state.messages and st.session_state.messages[0]["role"] == "system":
+        system_msg = st.session_state.messages[0]
+    convo_id = str(uuid.uuid4())
+    st.session_state.current_convo_id = convo_id
+    st.session_state.messages = [system_msg] if system_msg else []
+    st.session_state.conversations[convo_id] = {
+        "id": convo_id,
+        "title": "New Conversation",
+        "messages": st.session_state.messages.copy(),
+        "created_at": datetime.now().isoformat(),
+        "token_count": 0,
+    }
+    save_func()
 
 
 def delete_conversation(convo_id: str):

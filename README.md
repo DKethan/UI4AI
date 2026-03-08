@@ -27,9 +27,26 @@ pip install UI4AI
 
 ---
 
-## Basic Usage
+## Minimal usage (frontend only, no API key)
 
-Use the modern OpenAI Python SDK and the actual `run_chat()` parameters:
+```python
+from UI4AI import run_chat
+
+def generate_response(messages):
+    return f"You said: {messages[-1]['content']}"
+
+run_chat(generate_response=generate_response)
+```
+
+Run: `streamlit run app.py`
+
+For OpenAI: use `run_chat_openai()` (requires API key).
+
+---
+
+## Basic usage (customize with parameters)
+
+Use `run_chat()` with your own `generate_response`:
 
 ```python
 from UI4AI import run_chat
@@ -52,11 +69,28 @@ run_chat(
 )
 ```
 
-Run the app:
+Or use `run_chat_openai()` and override any parameter:
 
-```bash
-streamlit run app.py
+```python
+run_chat_openai(
+    page_title="My Bot",
+    system_prompt="You are a helpful assistant.",
+    model="gpt-4o",
+)
 ```
+
+Run the app: `streamlit run app.py`
+
+---
+
+## Examples
+
+| File | Description |
+|------|-------------|
+| `examples/minimal_example.py` | Frontend only, no API key |
+| `examples/simple_example.py` | Echo bot with more responses |
+| `examples/openai_example.py` | OpenAI (requires API key) |
+| `examples/base_example.py` | Full template with all parameters documented |
 
 ---
 
@@ -107,7 +141,19 @@ run_chat(
 
 ---
 
-## Parameter reference
+## run_chat_openai parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `api_key` | `str` or `None` | `None` | OpenAI API key (or use `OPENAI_API_KEY` env / sidebar) |
+| `model` | `str` | `"gpt-4o-mini"` | Model name |
+| `temperature` | `float` | `0.7` | Sampling temperature |
+| `stream` | `bool` | `False` | Use streaming responses |
+| `**kwargs` | — | — | Any `run_chat` parameter (e.g. `page_title`, `system_prompt`) |
+
+---
+
+## run_chat parameter reference
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
@@ -137,6 +183,7 @@ run_chat(
 | `welcome_title` | `str` | `"Welcome"` | Title shown when there are no messages. |
 | `welcome_message` | `str` | `"How can I help you today?"` | Message shown on welcome screen. |
 | `suggestions` | `List[str]` or `None` | `None` | Optional suggestion chips on welcome screen. |
+| `setup_callback` | `Callable` or `None` | `None` | Called after `set_page_config` (e.g. for API key prompt). Use when you need `st.*` before the main UI. |
 
 ---
 

@@ -1,10 +1,16 @@
-from typing import List, Dict, Callable, Optional, Iterator
+from typing import List, Dict, Callable, Optional, Iterator, Any
 
 import streamlit as st
 
 from .conversation_store import save_conversations
 from .session_manager import init_session_state, reset_conversation
-from .ui_components import render_sidebar, render_chat_history, render_chat_header, render_welcome_screen
+from .ui_components import (
+    apply_global_styling,
+    render_sidebar,
+    render_chat_history,
+    render_chat_header,
+    render_welcome_screen,
+)
 from .message_handler import handle_user_input, create_system_message
 
 
@@ -35,6 +41,7 @@ def run_chat(
         welcome_title: str = "Welcome",
         welcome_message: str = "How can I help you today?",
         suggestions: Optional[List[str]] = None,
+        setup_callback: Optional[Callable[[], None]] = None,
 ):
     """
     Run the enhanced Streamlit chat UI with all features.
@@ -61,13 +68,17 @@ def run_chat(
         system_prompt: Optional system prompt to include in each conversation
         enable_search: Whether to enable conversation search feature
     """
-    # Initialize session state
-    init_session_state(storage_path)
-    
-    # Configure page
+    # set_page_config MUST be first Streamlit command
     st.set_page_config(page_title=page_title, layout=layout)
 
-    # Render chat header
+    # Optional setup (e.g. API key prompt) — runs after page config
+    if setup_callback:
+        setup_callback()
+
+    # Initialize session state
+    init_session_state(storage_path)
+
+    # Render sidebar header (minimal - Instructions/History in sidebar)
     render_chat_header(header_title, byline_text)
 
     # Add system message if provided (including for new conversations)
@@ -78,13 +89,10 @@ def run_chat(
     def save_func():
         save_conversations(st.session_state.storage_path)
 
-    # Render sidebar with search if enabled
+    # Render sidebar
     with st.sidebar:
-        if enable_search:
-            from .ui_components import render_search_box
-            render_search_box()
-            
         render_sidebar(
+            enable_search=enable_search,
             generate_title=generate_title,
             count_tokens=count_tokens,
             new_conversation_label=new_conversation_label,
@@ -95,13 +103,20 @@ def run_chat(
             show_token_count=show_token_count,
             max_title_length=max_title_length,
             reset_conversation_func=reset_conversation,
-            save_conversations_func=save_func
+            save_conversations_func=save_func,
+            header_title=header_title,
+            byline_text=byline_text,
         )
 
-    # Render main chat interface (welcome screen when no visible conversation yet)
+    # Apply global styling (chat input, etc.) and render main chat interface
+    apply_global_styling()
     messages = st.session_state.messages
     has_visible_messages = len(messages) > 1 or (len(messages) == 1 and messages[0]["role"] != "system")
-    if not has_visible_messages:
+    has_pending_suggestion = "pending_suggestion" in st.session_state and st.session_state.pending_suggestion
+    # Read chat input here so we can hide welcome as soon as user sends (even during "Thinking...")
+    chat_input_value = st.chat_input(chat_placeholder)
+    has_input_this_run = (chat_input_value is not None) or has_pending_suggestion
+    if not has_visible_messages and not has_input_this_run:
         render_welcome_screen(
             welcome_title=welcome_title,
             welcome_message=welcome_message,
@@ -110,7 +125,7 @@ def run_chat(
     else:
         render_chat_history(user_avatar=user_avatar, assistant_avatar=assistant_avatar)
 
-    # Handle user input
+    # Handle user input (processes pending_suggestion or chat_input_value)
     handle_user_input(
         generate_response=generate_response,
         generate_response_stream=generate_response_stream,
@@ -122,4 +137,66 @@ def run_chat(
         save_conversations_func=save_func,
         user_avatar=user_avatar,
         assistant_avatar=assistant_avatar,
+        chat_input_value=chat_input_value,
     )
+
+
+def run_chat_openai(
+    api_key: Optional[str] = None,
+    model: str = "gpt-4o-mini",
+    temperature: float = 0.7,
+    stream: bool = False,
+    **kwargs: Any,
+) -> None:
+    """
+    One-call OpenAI chat. Uses OPENAI_API_KEY env or sidebar input if not passed.
+
+    Example:
+        from UI4AI import run_chat_openai
+        run_chat_openai()  # that's it
+
+    Override any run_chat parameter via kwargs:
+        run_chat_openai(page_title="My Bot", system_prompt="You are helpful.")
+    """
+    import os
+    from openai import OpenAI
+
+    def setup():
+        key = api_key or os.getenv("OPENAI_API_KEY") or st.session_state.get("openai_api_key")
+        if not key:
+            key = st.sidebar.text_input("OpenAI API key:", type="password", key="openai_api_key")
+            if not key:
+                st.warning("Enter your OpenAI API key to continue.")
+                st.stop()
+
+    def make_client():
+        key = api_key or os.getenv("OPENAI_API_KEY") or st.session_state.get("openai_api_key")
+        return OpenAI(api_key=key)
+
+    if stream:
+
+        def gen(messages: List[Dict]) -> Iterator[str]:
+            client = make_client()
+            stream_resp = client.chat.completions.create(
+                model=model,
+                messages=messages,
+                temperature=temperature,
+                stream=True,
+            )
+            for chunk in stream_resp:
+                if chunk.choices[0].delta.content:
+                    yield chunk.choices[0].delta.content
+
+        run_chat(setup_callback=setup, generate_response_stream=gen, **kwargs)
+    else:
+
+        def gen(messages: List[Dict]) -> str:
+            client = make_client()
+            r = client.chat.completions.create(
+                model=model,
+                messages=messages,
+                temperature=temperature,
+            )
+            return r.choices[0].message.content or ""
+
+        run_chat(setup_callback=setup, generate_response=gen, **kwargs)
